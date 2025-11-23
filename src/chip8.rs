@@ -207,32 +207,34 @@ impl Chip8 {
             0x5 => {
                 let xval = self.regs[x as usize];
                 let yval = self.regs[y as usize];
-                if xval > yval {
-                    self.regs[0xF] = 1;
+                if xval >= yval {
                     self.regs[x as usize] = xval - yval;
+                    self.regs[0xF] = 1;
                 } else {
-                    self.regs[0xF] = 0;
                     self.regs[x as usize] = xval.wrapping_sub(yval);
+                    self.regs[0xF] = 0;
                 }
             },
             0x6 => {
-                self.regs[0xF] = (self.regs[x as usize] & 0x1) as u8;
+                let f = (self.regs[x as usize] & 0x1) as u8;
                 self.regs[x as usize] = self.regs[x as usize] >> 1;
+                self.regs[0xF] = f;
             },
             0x7 => {
                 let xval = self.regs[x as usize];
                 let yval = self.regs[y as usize];
-                if yval > xval {
-                    self.regs[0xF] = 1;
+                if yval >= xval {
                     self.regs[x as usize] = yval - xval;
+                    self.regs[0xF] = 1;
                 } else {
-                    self.regs[0xF] = 0;
                     self.regs[x as usize] = yval.wrapping_sub(xval);
+                    self.regs[0xF] = 0;
                 }
             },
             0xE => {
-                self.regs[0xF] = ((self.regs[x as usize] & 0xA0) >> 7) as u8;
+                let f = ((self.regs[x as usize] & 0xA0) >> 7) as u8;
                 self.regs[x as usize] = self.regs[x as usize] << 1;
+                self.regs[0xF] = f;
             },
             _ => panic!("Unsupported op code")
         }
