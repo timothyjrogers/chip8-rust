@@ -1,10 +1,33 @@
 use rand::Rng;
 
-mod constants;
+pub const MEMORY_SIZE: usize = 4096;
+pub const NUM_REGISTERS: usize = 16;
+pub const PC_INITIAL: u16 = 0x200;
+pub const FONT_DATA: [u8; 80] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+];
+pub const SCREEN_WIDTH: u32 = 64;
+pub const SCREEN_HEIGHT: u32 = 32;
+
 
 pub struct Chip8 {
-    mem: [u8; constants::MEMORY_SIZE],
-    regs: [u8; constants::NUM_REGISTERS],
+    mem: [u8; MEMORY_SIZE],
+    regs: [u8; NUM_REGISTERS],
     pc: u16,
     idx: u16,
     stack: [u16; 16],
@@ -12,7 +35,7 @@ pub struct Chip8 {
     pub sound: u8,
     delay: u8,
     keyboard: [bool; 16],
-    pub screen: [bool; (constants::SCREEN_WIDTH * constants::SCREEN_HEIGHT) as usize],
+    pub screen: [bool; (SCREEN_WIDTH * SCREEN_HEIGHT) as usize],
     pub redraw: bool,
     pub status: CpuStatus,
 }
@@ -25,21 +48,21 @@ pub enum CpuStatus {
 impl Chip8 {
     pub fn new(rom_path: String) -> Self {
         let mut cpu = Self {
-            mem: [0; constants::MEMORY_SIZE],
-            regs: [0; constants::NUM_REGISTERS],
-            pc: constants::PC_INITIAL,
+            mem: [0; MEMORY_SIZE],
+            regs: [0; NUM_REGISTERS],
+            pc: PC_INITIAL,
             idx: 0,
             stack: [0; 16],
             sp: -1,
             sound: 0,
             delay: 0,
             keyboard: [false; 16],
-            screen: [false; (constants::SCREEN_WIDTH * constants::SCREEN_HEIGHT) as usize],
+            screen: [false; (SCREEN_WIDTH * SCREEN_HEIGHT) as usize],
             redraw: false,
             status: CpuStatus::Running,
         };
         for number in 0..80 {
-            cpu.mem[number] = constants::FONT_DATA[number];
+            cpu.mem[number] = FONT_DATA[number];
         }
         let rom = std::fs::read(rom_path).unwrap();
         for (pos, e) in rom.iter().enumerate() {
@@ -53,8 +76,19 @@ impl Chip8 {
         if self.sound > 0 { self.sound = self.sound - 1 }
     }
 
-    pub fn tick(&mut self, kb_state: [bool; 16]) {
-        self.keyboard = kb_state;
+    pub fn play_audio(&self) -> bool {
+        return self.sound > 0;
+    }
+
+    pub fn set_keypad(&mut self, index: usize) {
+        self.keyboard[index] = true;
+    }
+
+    pub fn unset_keypad(&mut self, index: usize) {
+        self.keyboard[index] = false;
+    }
+
+    pub fn tick(&mut self) -> Vec<bool> {
         //fetch
         let instruction = Self::fetch(self);
         //decode
@@ -81,6 +115,7 @@ impl Chip8 {
                 panic!("Unknown opcode, panicking.");
             }
         }
+        return Vec::from(self.screen);
     }
 
     fn fetch(&mut self) -> u16 {
@@ -104,7 +139,7 @@ impl Chip8 {
 
     fn category_0(&mut self, n: u8) {
         match n {
-            0x0 => self.screen = [false; (constants::SCREEN_WIDTH * constants::SCREEN_HEIGHT) as usize],
+            0x0 => self.screen = [false; (SCREEN_WIDTH * SCREEN_HEIGHT) as usize],
             0xE => {
                 self.pc = self.stack[self.sp as usize];
                 self.sp = self.sp - 1;
@@ -220,22 +255,22 @@ impl Chip8 {
     }
 
     fn category_c(&mut self, x: u8, nn: u8) {
-        let rnum: u8 = rand::thread_rng().gen_range(0, 256) as u8;
+        let rnum: u8 = rand::rng().random_range(0..256) as u8;
         self.regs[x as usize] = rnum & nn;
     }
 
     fn category_d(&mut self, x: u8, y: u8, n: u8) {
-        let xcoord: usize = (self.regs[x as usize] as usize) % (constants::SCREEN_WIDTH as usize);
-        let ycoord: usize = (self.regs[y as usize] as usize) % (constants::SCREEN_HEIGHT as usize);
+        let xcoord: usize = (self.regs[x as usize] as usize) % (SCREEN_WIDTH as usize);
+        let ycoord: usize = (self.regs[y as usize] as usize) % (SCREEN_HEIGHT as usize);
         self.regs[0xF] = 0;
         for number in 0..(n as usize) {
-            if ycoord + number >= constants::SCREEN_HEIGHT as usize {
+            if ycoord + number >= SCREEN_HEIGHT as usize {
                 continue;
             }
             let line = self.mem[(self.idx as usize) + number];
             for x in 0..8 {
-                let pix_idx = xcoord + x + ((ycoord + number)* constants::SCREEN_WIDTH as usize);
-                if (xcoord + x) >= constants::SCREEN_WIDTH as usize {
+                let pix_idx = xcoord + x + ((ycoord + number)* SCREEN_WIDTH as usize);
+                if (xcoord + x) >= SCREEN_WIDTH as usize {
                     continue;
                 }
                 let sprite_pixel = ((line as usize) >> (7 - x)) & 0x1;

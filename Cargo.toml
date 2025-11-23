@@ -1,16 +1,10 @@
 [package]
-name = "tjr-chip8"
+name = "chip8-rust"
 version = "0.1.0"
 authors = ["Timothy Rogers <rogers.timothy.john@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-iced = { git = "https://github.com/hecrj/iced.git", features = [ "async-std", "canvas" ], tag = "0.3.0" }
-iced_native = { git = "https://github.com/hecrj/iced.git", tag = "0.3.0" }
-iced_web = { git = "https://github.com/hecrj/iced.git", tag = "0.3.0" }
-rodio = { version = "0.14.0" }
-nfd2 = { version = "0.3.0" }
-sdl2 = "0.34"
-rand = "0.7.3"
+sdl2 = "0.38.0"
+rand = "0.9.2"
+rfd = "0.15.4"
